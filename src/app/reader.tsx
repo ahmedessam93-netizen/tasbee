@@ -7,7 +7,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { AppState, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronIcon, CloseIcon, BookmarkIcon, ListenIcon, PauseIcon, PlayIcon, RepeatIcon, SkipIcon } from '../components/icons';
@@ -17,8 +17,9 @@ import { Pager, PagerHandle } from '../components/Pager';
 import { Bar, GlassButton, GoldButton, IconButton, Sky, Txt, useTap } from '../components/ui';
 import { leave } from '../core/nav';
 import { ar, fmtTime, itemsFor, MN, ORDINALS, PG, planForDay, RItem, sitLabel, sitPages, weekComplete } from '../core/plan';
-import { ayahAt, firstOn, Key, labelOf, lastBy, order, pageOf, placeOf, RECITER, shortLabel } from '../core/recite';
+import { ayahAt, count as ayahCount, firstOn, Key, labelOf, lastBy, order, pageOf, placeOf, RECITER, shortLabel } from '../core/recite';
 import { useStore } from '../core/store';
+import { TAFSIR, tafsirOf } from '../core/tafsir';
 import { useRecitation } from '../core/useRecitation';
 import { juzOf, minutesFor, posOf, surahName, surahsOn } from '../quran';
 import { loadPage } from '../quran/fonts';
@@ -170,6 +171,12 @@ export default function Reader() {
   // ---- listening: al-Husary recites, the page follows, the ayah being recited is marked ----
   const [sheet, setSheet] = useState<Key | null>(null);          // the ayah a long press chose
   const [rangeFrom, setRangeFrom] = useState<Key | null>(null);  // a repeat range is waiting for its last ayah
+  // the meaning of an ayah (al-Tafsir al-Muyassar)
+  const [meaning, setMeaning] = useState<{ k: Key; text: string | null; shared: boolean } | null>(null);
+  const openMeaning = (k: Key) => {
+    setSheet(null); setMeaning({ k, text: null, shared: false });
+    tafsirOf(k).then((t) => setMeaning((m) => (m && m.k.s === k.s && m.k.a === k.a ? { k, text: t ? t.text : '', shared: !!t && t.shared } : m)));
+  };
   const rec = useRecitation({
     // in a sitting, the recitation stops where the sitting ends; in the open mushaf it goes on
     until: (k) => {
@@ -387,9 +394,45 @@ export default function Reader() {
                 <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 19, lineHeight: 28, color: p.ink, textAlign: 'center' }}>{labelOf(sheet)}</Text>
                 <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: F.ui, fontSize: 12.5, lineHeight: 18, color: p.muted, textAlign: 'center', marginBottom: 4 }}>{`بصوت ${RECITER.name}`}</Text>
                 <GoldButton label="استمع من هذه الآية" icon={<PlayIcon size={18} color={p.onPrimary} />} onPress={() => { const k = sheet; setSheet(null); rec.start(k); }} />
+                <GlassButton label="معنى الآية (التفسير الميسّر)" tone="gold" onPress={() => openMeaning(sheet)} />
                 <GlassButton label="كرّر هذه الآية" tone="gold" onPress={() => { const k = sheet; setSheet(null); rec.start(k, { kind: 'ayah' }); }} />
                 <GlassButton label="كرّر من هذه الآية إلى آية أختارها" tone="gold" onPress={() => { setRangeFrom(sheet); setSheet(null); showChrome(false); }} />
                 <GlassButton label="إلغاء" onPress={() => setSheet(null)} />
+              </View>
+            </Bar>
+          </Animated.View>
+        </View>
+      ) : null}
+
+      {/* the meaning of an ayah */}
+      {meaning ? (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => setMeaning(null)} accessibilityLabel="إغلاق" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.38)' }} />
+          <Animated.View entering={FadeIn.duration(180)} style={{ marginHorizontal: 12, marginBottom: insets.bottom + 12, maxHeight: height * 0.72 }}>
+            <Bar radius={26}>
+              <View style={{ padding: 16, maxHeight: height * 0.72 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={{ fontFamily: F.display, fontSize: 19, lineHeight: 28, color: p.ink, textAlign: 'right' }}>
+                      {labelOf({ s: meaning.k.s, a: Math.max(1, meaning.k.a) })}
+                    </Text>
+                    <Text maxFontSizeMultiplier={1.15} numberOfLines={1} style={{ fontFamily: F.ui, fontSize: 12.5, lineHeight: 18, color: p.goldLight, textAlign: 'right' }}>{`${TAFSIR.name}، ${TAFSIR.by}`}</Text>
+                  </View>
+                  <IconButton label="إغلاق المعنى" onPress={() => setMeaning(null)}><CloseIcon size={18} color={p.ink} /></IconButton>
+                </View>
+                <ScrollView style={{ marginTop: 12 }} contentContainerStyle={{ paddingBottom: 6 }} showsVerticalScrollIndicator={false}>
+                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: F.ui, fontSize: 16.5, lineHeight: 30, color: p.ink, textAlign: 'right', writingDirection: 'rtl' }}>
+                    {meaning.text === null ? 'جارٍ التحميل…' : meaning.text || 'تعذّر عرض المعنى الآن.'}
+                  </Text>
+                  {meaning.shared ? <Text maxFontSizeMultiplier={1.2} style={{ marginTop: 8, fontFamily: F.ui, fontSize: 12.5, lineHeight: 19, color: p.muted, textAlign: 'right' }}>يشرح التفسير هذه الآية مع آيات مجاورة لها في فقرة واحدة.</Text> : null}
+                </ScrollView>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <View style={{ flex: 1 }}><GlassButton label="الآية السابقة" onPress={() => { const k = meaning.k.a > 1 ? { s: meaning.k.s, a: meaning.k.a - 1 } : null; if (k) { tap(); openMeaning(k); } }} /></View>
+                  <View style={{ flex: 1 }}><GlassButton label="الآية التالية" onPress={() => { const k = meaning.k.a < ayahCount(meaning.k.s) ? { s: meaning.k.s, a: Math.max(1, meaning.k.a) + 1 } : null; if (k) { tap(); openMeaning(k); } }} /></View>
+                </View>
+                <View style={{ marginTop: 10 }}>
+                  <GoldButton label="استمع إلى الآية" icon={<PlayIcon size={18} color={p.onPrimary} />} onPress={() => { const k = { s: meaning.k.s, a: Math.max(1, meaning.k.a) }; setMeaning(null); rec.start(k); }} />
+                </View>
               </View>
             </Bar>
           </Animated.View>
