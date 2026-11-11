@@ -10,15 +10,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronIcon, CloseIcon, BookmarkIcon } from '../components/icons';
-import { MushafPage } from '../components/MushafPage';
+import { ChevronIcon, CloseIcon, BookmarkIcon, ListenIcon, PauseIcon, PlayIcon, RepeatIcon, SkipIcon } from '../components/icons';
+import { MushafPage, wordAt } from '../components/MushafPage';
 import { Shamsa } from '../components/ornaments';
 import { Pager, PagerHandle } from '../components/Pager';
 import { Bar, GlassButton, GoldButton, IconButton, Sky, Txt, useTap } from '../components/ui';
 import { leave } from '../core/nav';
 import { ar, fmtTime, itemsFor, MN, ORDINALS, PG, planForDay, RItem, sitLabel, sitPages, weekComplete } from '../core/plan';
+import { ayahAt, firstOn, Key, labelOf, lastBy, order, pageOf, placeOf, RECITER, shortLabel } from '../core/recite';
 import { useStore } from '../core/store';
-import { juzOf, minutesFor, surahName, surahsOn } from '../quran';
+import { useRecitation } from '../core/useRecitation';
+import { juzOf, minutesFor, posOf, surahName, surahsOn } from '../quran';
 import { loadPage } from '../quran/fonts';
 import { F, usePalette } from '../theme';
 
@@ -115,7 +117,8 @@ export default function Reader() {
       if (Platform.OS === 'web' && typeof window !== 'undefined') { window.removeEventListener('pagehide', onHide); document.removeEventListener('visibilitychange', onHide); }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const close = () => { flush(); leave(free ? '/mushaf' : '/'); };
+  const stopRef = useRef<() => void>(() => {});
+  const close = () => { stopRef.current(); flush(); leave(free ? '/mushaf' : '/'); };
 
   // The page is shown alone, like a printed mushaf. The controls appear for a moment when the
   // reader opens, and whenever the page is tapped; turning the page hides them again.
@@ -162,7 +165,47 @@ export default function Reader() {
 
   // the page uses the whole screen (inside the phone's own status and navigation bars)
   const pageW = Math.min(width, 640);
-  const pageH = height - insets.top - insets.bottom;
+  const fullH = height - insets.top - insets.bottom;
+
+  // ---- listening: al-Husary recites, the page follows, the ayah being recited is marked ----
+  const [sheet, setSheet] = useState<Key | null>(null);          // the ayah a long press chose
+  const [rangeFrom, setRangeFrom] = useState<Key | null>(null);  // a repeat range is waiting for its last ayah
+  const rec = useRecitation({
+    // in a sitting, the recitation stops where the sitting ends; in the open mushaf it goes on
+    until: (k) => {
+      if (free) return null;
+      const at = placeOf(k)[0]; const st = P.part.sittings.find((x) => at >= posOf(x.from) && at <= posOf(x.to));
+      return st ? lastBy(posOf(st.to)) : null;
+    },
+    onAyah: (k) => {
+      const at = placeOf(k)[0]; const pg = pageOf(k);
+      let i = items.findIndex((x) => x.kind === 'page' && x.it.page === pg && at >= x.it.from && at <= x.it.to);
+      if (i < 0) i = items.findIndex((x) => x.kind === 'page' && x.it.page === pg);
+      if (i >= 0 && i !== idxRef.current) pager.current?.setPage(i);
+    },
+    onDone: () => { const nx = items[idxRef.current + 1]; if (nx && nx.kind !== 'page') pager.current?.setPage(idxRef.current + 1); },
+  });
+  // while listening, the page sits above the player so its last lines are never covered
+  const pageH = fullH - (rec.cur ? 74 : 0);
+  const listen = () => {
+    tap('medium');
+    if (rec.cur) { rec.toggle(); return; }
+    const x = items[idxRef.current]; if (!x || x.kind !== 'page') return;
+    const k = firstOn(x.it.page, free ? 0 : x.it.from); if (k) rec.start(k);
+  };
+  const onLong = (e: any, page: number) => {
+    const w = wordAt(page, pageW, pageH, e.nativeEvent.pageX - (width - pageW) / 2, e.nativeEvent.pageY - insets.top);
+    const k = w != null ? ayahAt(w) : null; if (!k) return;
+    tap('medium');
+    if (rangeFrom) {
+      const [a, b] = order(rangeFrom) <= order(k) ? [rangeFrom, k] : [k, rangeFrom];
+      setRangeFrom(null); rec.start(a, { kind: 'range', from: a, to: b }); return;
+    }
+    setSheet(k);
+  };
+  stopRef.current = rec.stop;
+  const hl = rec.cur && rec.cur.a > 0 ? placeOf(rec.cur) : undefined;
+  const hlB = rec.cur && rec.cur.a === 0 ? rec.cur.s : undefined;
 
   const k = cur.kind === 'page' ? cur.it.k : cur.kind === 'stop' ? cur.k : 4;
   const group = items.filter((x): x is { kind: 'page'; it: RItem } => x.kind === 'page' && x.it.k === k);
@@ -208,9 +251,11 @@ export default function Reader() {
             return (
               <View key={x.it.key} style={{ flex: 1 }}>
                 {Math.abs(i - idx) <= 1 ? (
-                  <Pressable onPress={toggleChrome} accessible={false} style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom, alignItems: 'center' }}>
+                  <Pressable onPress={toggleChrome} onLongPress={(e) => onLong(e, x.it.page)} delayLongPress={380} accessible={false}
+                    // @ts-ignore web: a long press must not select text or open the system menu
+                    style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom, alignItems: 'center', userSelect: 'none', WebkitTouchCallout: 'none' }}>
                     <MushafPage page={x.it.page} width={pageW} height={pageH} ink={p.pageInk} faint={p.dark ? 'rgba(240,228,203,0.22)' : 'rgba(27,36,54,0.2)'} gold={p.gold} muted={p.muted}
-                      from={free ? undefined : x.it.from} to={free ? undefined : x.it.to} />
+                      from={free ? undefined : x.it.from} to={free ? undefined : x.it.to} hl={hl} hlB={hlB} hlBg={p.dark ? 'rgba(143,227,194,0.20)' : 'rgba(21,122,99,0.15)'} />
                   </Pressable>
                 ) : null}
               </View>
@@ -245,6 +290,9 @@ export default function Reader() {
                 <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 16.5, lineHeight: 23, color: p.ink, textAlign: 'right' }}>{title}</Text>
                 <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: F.ui, fontSize: 12.5, lineHeight: 18, color: p.muted, textAlign: 'right' }}>{sub}</Text>
               </View>
+              <IconButton label={rec.cur ? (rec.playing ? 'إيقاف التلاوة مؤقتًا' : 'متابعة التلاوة') : 'استمع إلى التلاوة من هذه الصفحة'} onPress={listen}>
+                <ListenIcon size={20} color={rec.cur ? p.turqHi : p.ink} />
+              </IconButton>
               <IconButton label={(state.bookmarks || []).includes(pageNo) ? 'إزالة العلامة عن هذه الصفحة' : 'ضع علامة على هذه الصفحة'} onPress={() => { toggleBookmark(pageNo); showChrome(true); }}>
                 <BookmarkIcon size={20} color={(state.bookmarks || []).includes(pageNo) ? p.gold : p.ink} filled={(state.bookmarks || []).includes(pageNo)} />
               </IconButton>
@@ -253,7 +301,7 @@ export default function Reader() {
         </Animated.View>
       )}
 
-      {cur.kind === 'page' && (
+      {cur.kind === 'page' && !rec.cur && (
         <Animated.View pointerEvents={chromeOn ? 'box-none' : 'none'} style={[{ position: 'absolute', bottom: insets.bottom + 10, left: 12, right: 12 }, chromeSt]}>
           <Bar radius={24}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
@@ -281,6 +329,72 @@ export default function Reader() {
           </Bar>
         </Animated.View>
       )}
+
+      {/* the player: stays in view for as long as the recitation is on */}
+      {rec.cur ? (
+        <Animated.View entering={FadeIn.duration(220)} style={{ position: 'absolute', bottom: insets.bottom + 10, left: 12, right: 12 }}>
+          <Bar radius={26}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, paddingHorizontal: 10 }}>
+              <View style={{ flex: 1, minWidth: 0 }} accessible accessibilityLabel={`${labelOf(rec.cur)}، ${RECITER.name}`}>
+                <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: F.uiBold, fontSize: 15, lineHeight: 22, color: p.ink, textAlign: 'right' }}>{shortLabel(rec.cur)}</Text>
+                <Text numberOfLines={1} maxFontSizeMultiplier={1.15} style={{ fontFamily: F.ui, fontSize: 12, lineHeight: 17, color: rec.error ? p.danger : p.muted, textAlign: 'right' }}>
+                  {rec.error ? 'تعذّر التشغيل. تحقق من الاتصال ثم اضغط تشغيل.' : rec.repeat.kind === 'ayah' ? `${RECITER.short} · تكرار الآية` : rec.repeat.kind === 'range' ? `تكرار من ${ar(rec.repeat.from.a)} إلى ${ar(rec.repeat.to.a)}` : `بصوت ${RECITER.short}`}
+                </Text>
+              </View>
+              <Pressable onPress={() => { tap(); rec.setRepeat(rec.repeat.kind === 'on' ? { kind: 'ayah' } : { kind: 'on' }); }} hitSlop={6} accessibilityRole="button"
+                accessibilityLabel={rec.repeat.kind === 'on' ? 'كرّر هذه الآية' : 'أوقف التكرار'}
+                style={{ width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: rec.repeat.kind === 'on' ? 'transparent' : p.turqSoft, borderWidth: rec.repeat.kind === 'on' ? 0 : 1, borderColor: p.turq }}>
+                <RepeatIcon size={19} color={rec.repeat.kind === 'on' ? p.muted : p.turqHi} />
+              </Pressable>
+              <Pressable onPress={() => { tap(); rec.skip(-1); }} hitSlop={6} accessibilityRole="button" accessibilityLabel="الآية السابقة" style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}>
+                <SkipIcon back size={20} color={p.ink} />
+              </Pressable>
+              <Pressable onPress={() => { tap('medium'); rec.toggle(); }} accessibilityRole="button" accessibilityLabel={rec.playing ? 'إيقاف مؤقت' : 'تشغيل'}
+                style={({ pressed }) => ({ width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', transform: [{ scale: pressed ? 0.95 : 1 }] })}>
+                <LinearGradient colors={['#F7E2A6', '#E2BC6A', '#B98E3A']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+                <View>{rec.playing ? <PauseIcon size={22} color="#2A1D07" /> : <PlayIcon size={22} color="#2A1D07" />}</View>
+              </Pressable>
+              <Pressable onPress={() => { tap(); rec.skip(1); }} hitSlop={6} accessibilityRole="button" accessibilityLabel="الآية التالية" style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}>
+                <SkipIcon size={20} color={p.ink} />
+              </Pressable>
+              <Pressable onPress={() => { tap(); rec.stop(); }} hitSlop={6} accessibilityRole="button" accessibilityLabel="أنهِ التلاوة" style={{ width: 34, height: 38, alignItems: 'center', justifyContent: 'center' }}>
+                <CloseIcon size={17} color={p.muted} />
+              </Pressable>
+            </View>
+          </Bar>
+        </Animated.View>
+      ) : null}
+
+      {/* choosing the last ayah of a repeat range */}
+      {rangeFrom ? (
+        <View style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12 }}>
+          <Bar radius={20}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14 }}>
+              <Text maxFontSizeMultiplier={1.2} style={{ flex: 1, fontFamily: F.uiMed, fontSize: 14, lineHeight: 21, color: p.ink, textAlign: 'right' }}>{`يبدأ التكرار من ${shortLabel(rangeFrom)}. اضغط مطوّلًا على آخر آية.`}</Text>
+              <Pressable onPress={() => setRangeFrom(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="إلغاء التكرار"><Text style={{ fontFamily: F.uiBold, fontSize: 14, color: p.turqHi }}>إلغاء</Text></Pressable>
+            </View>
+          </Bar>
+        </View>
+      ) : null}
+
+      {/* a long press on an ayah: what to do with it */}
+      {sheet ? (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => setSheet(null)} accessibilityLabel="إغلاق" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.38)' }} />
+          <Animated.View entering={FadeIn.duration(180)} style={{ marginHorizontal: 12, marginBottom: insets.bottom + 12 }}>
+            <Bar radius={26}>
+              <View style={{ padding: 16, gap: 10 }}>
+                <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 19, lineHeight: 28, color: p.ink, textAlign: 'center' }}>{labelOf(sheet)}</Text>
+                <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: F.ui, fontSize: 12.5, lineHeight: 18, color: p.muted, textAlign: 'center', marginBottom: 4 }}>{`بصوت ${RECITER.name}`}</Text>
+                <GoldButton label="استمع من هذه الآية" icon={<PlayIcon size={18} color={p.onPrimary} />} onPress={() => { const k = sheet; setSheet(null); rec.start(k); }} />
+                <GlassButton label="كرّر هذه الآية" tone="gold" onPress={() => { const k = sheet; setSheet(null); rec.start(k, { kind: 'ayah' }); }} />
+                <GlassButton label="كرّر من هذه الآية إلى آية أختارها" tone="gold" onPress={() => { setRangeFrom(sheet); setSheet(null); showChrome(false); }} />
+                <GlassButton label="إلغاء" onPress={() => setSheet(null)} />
+              </View>
+            </Bar>
+          </Animated.View>
+        </View>
+      ) : null}
     </View>
   );
 }

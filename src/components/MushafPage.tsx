@@ -43,9 +43,46 @@ type Props = {
   ink: string; faint: string; gold: string; muted: string;
   /** words before `from` or after `to` (positions, see quran/pos) are shown faint */
   from?: number; to?: number;
+  /** the ayah being recited: its words, first to last, get a soft band behind them */
+  hl?: [number, number]; hlBg?: string;
+  /** the surah whose basmala is being recited */
+  hlB?: number;
 };
 
 const wordW = (w: Word) => (Array.isArray(w[1]) ? w[1].reduce((a, b) => a + b, 0) + PART_GAP * (w[1].length - 1) : w[1]);
+
+/** Where the words of one line go: the size they are drawn at, the space between them, and the right edge of the first. */
+function lineLayout(words: Word[], S: Sheet, centered: boolean) {
+  const widths = words.map(wordW);
+  const sum = widths.reduce((a, b) => a + b, 0);
+  let scale = S.fs / UPM;                               // font units → points
+  let gap = 0;
+  if (centered) gap = S.fs * 0.3;
+  else {
+    const gaps = Math.max(1, words.length - 1);
+    // a few lines are a little wider than the rest: draw them a little smaller
+    if ((sum + MIN_GAP * gaps) * scale > S.textW) scale = S.textW / (sum + MIN_GAP * gaps);
+    gap = words.length > 1 ? (S.textW - sum * scale) / gaps : 0;
+  }
+  const lineW = sum * scale + gap * (words.length - 1);
+  return { widths, scale, gap, right: S.left + (S.textW + lineW) / 2 };
+}
+
+/** The word under a point of the page (its position, see quran/pos), or null. Used for a long press. */
+export function wordAt(page: number, width: number, height: number, x: number, y: number): number | null {
+  const S = sheetFor(width, height); const lines = PAGES[page - 1]; const centered = page <= 2;
+  const y0 = centered ? S.top + (S.blockH - lines.length * S.row) / 2 : S.top;
+  const li = Math.floor((y - y0) / S.row);
+  if (li < 0 || li >= lines.length) return null;
+  const line = lines[li]; if (isTitle(line) || isBasmala(line)) return null;
+  const L = lineLayout(line as Word[], S, centered); let xx = L.right;
+  for (let wi = 0; wi < L.widths.length; wi++) {
+    const w = L.widths[wi] * L.scale;
+    if (x <= xx + L.gap / 2 && x >= xx - w - L.gap / 2) return pos(page, li, wi);
+    xx -= w + L.gap;
+  }
+  return null;
+}
 
 /** A surah title: a slim cartouche of double gold lines with the surah's name. */
 function Title({ name, w, h, gold, ink }: { name: string; w: number; h: number; gold: string; ink: string }) {
@@ -64,7 +101,7 @@ function Title({ name, w, h, gold, ink }: { name: string; w: number; h: number; 
   );
 }
 
-function MushafPageImpl({ page, width, height, ink, faint, gold, muted, from, to }: Props) {
+function MushafPageImpl({ page, width, height, ink, faint, gold, muted, from, to, hl, hlBg, hlB }: Props) {
   const [ready] = usePageFonts([page]);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -124,35 +161,37 @@ function MushafPageImpl({ page, width, height, ink, faint, gold, muted, from, to
           return (
             <Text key={li} allowFontScaling={false}
               style={{ position: 'absolute', top: top + (S.row - fsB * 2.6) / 2, left: S.left + (S.textW - bw) / 2, width: bw, height: fsB * 2.6, lineHeight: fsB * 2.6,
-                fontFamily: BSML, fontSize: fsB, color: ink, textAlign: 'center', includeFontPadding: false, opacity: inRange(pos(page, li, 0)) ? 1 : 0.3 }}>{BASMALA}</Text>
+                fontFamily: BSML, fontSize: fsB, color: hlB === line[1] ? gold : ink, textAlign: 'center', includeFontPadding: false, opacity: inRange(pos(page, li, 0)) ? 1 : 0.3 }}>{BASMALA}</Text>
           );
         }
         // place the words from the right edge leftwards, spreading the spare width between them
         const words = line as Word[];
-        const widths = words.map(wordW);
-        const sum = widths.reduce((a, b) => a + b, 0);
-        let scale = S.fs / UPM;                               // font units → points
-        let gap = 0;
-        if (centered) gap = S.fs * 0.3;
-        else {
-          const gaps = Math.max(1, words.length - 1);
-          // a few lines are a little wider than the rest: draw them a little smaller
-          if ((sum + MIN_GAP * gaps) * scale > S.textW) scale = S.textW / (sum + MIN_GAP * gaps);
-          gap = words.length > 1 ? (S.textW - sum * scale) / gaps : 0;
-        }
+        const { scale, gap, right } = lineLayout(words, S, centered);
         const fsl = scale * UPM;
-        const lineW = sum * scale + gap * (words.length - 1);
-        let x = S.left + (S.textW + lineW) / 2;               // right edge of the first word
+        let x = right;                                        // right edge of the first word
         const pad = fsl * 0.5;
-        return words.map((w, wi) => {
+        // the band behind the words of the ayah being recited, on this line
+        let b0 = Infinity, b1 = -Infinity;
+        if (hl && hl[1] >= pos(page, li, 0) && hl[0] <= pos(page, li, words.length - 1)) {
+          let xx = x;
+          words.forEach((w, wi) => {
+            const wAll = wordW(w) * scale; const ps = pos(page, li, wi);
+            if (ps >= hl[0] && ps <= hl[1]) { b1 = Math.max(b1, xx); b0 = Math.min(b0, xx - wAll); }
+            xx -= wAll + gap;
+          });
+        }
+        const band = b1 > b0 ? (
+          <View key={`hl${li}`} pointerEvents="none" style={{ position: 'absolute', top: top + S.row * 0.06, left: b0 - 5, width: b1 - b0 + 10, height: S.row * 0.88, borderRadius: 8, backgroundColor: hlBg || 'rgba(120,200,170,0.2)' }} />
+        ) : null;
+        const cells = words.map((w, wi) => {
           const color = inRange(pos(page, li, wi)) ? ink : faint;
           const parts = Array.isArray(w[1]) ? w[0].split(' ') : [w[0]];
           const pw = Array.isArray(w[1]) ? w[1] : [w[1]];
           const out = parts.map((g, k) => {
             const ww = pw[k] * scale;
             const el = (
-              <Text key={`${li}-${wi}-${k}`} allowFontScaling={false}
-                style={{ position: 'absolute', top: top + (S.row - box * (fsl / S.fs)) / 2, left: x - ww - pad, width: ww + 2 * pad,
+              <Text key={`${li}-${wi}-${k}`} allowFontScaling={false} selectable={false}
+                style={{ userSelect: 'none', position: 'absolute', top: top + (S.row - box * (fsl / S.fs)) / 2, left: x - ww - pad, width: ww + 2 * pad,
                   height: box * (fsl / S.fs), lineHeight: box * (fsl / S.fs), fontFamily: fam, fontSize: fsl, color, textAlign: 'center', includeFontPadding: false }}>{g}</Text>
             );
             x -= ww + (k < parts.length - 1 ? PART_GAP * scale : 0);
@@ -161,6 +200,7 @@ function MushafPageImpl({ page, width, height, ink, faint, gold, muted, from, to
           x -= gap;
           return out;
         });
+        return band ? [band, ...cells] : cells;
       })}
     </View>
   );

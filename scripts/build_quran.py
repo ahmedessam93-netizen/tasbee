@@ -53,6 +53,16 @@ for p in range(1, 605):
             words[(v['verse_key'], w['position'])] = w
 vkey = lambda vk: tuple(map(int, vk.split(':')))
 order = sorted(words, key=lambda k: (*vkey(k[0]), k[1]))
+# One slip in the source: the end mark of 84:21 is filed on line 13 of page 589, though the ayah
+# ends on line 14 (with the mark on 13, that line is a mark too wide and line 14 a mark too short).
+# It is put back after the last word of its ayah, and no other word may sit before the one it follows.
+_fix = words[('84:21', 7)]
+if _fix['line_number'] == 13 and words[('84:21', 6)]['line_number'] == 14: _fix['line_number'] = 14
+_prev = (0, 0)
+for k in order:
+    _cur = (words[k]['page_number'], words[k]['line_number'])
+    assert _cur >= _prev, f'{k}: placed before the word it follows'
+    _prev = _cur
 types = collections.Counter(words[k]['char_type_name'] for k in order)
 assert len(verses) == 6236, len(verses)
 assert types['word'] == 77429 and types['end'] == 6236, types

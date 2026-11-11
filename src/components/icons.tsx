@@ -66,6 +66,26 @@ export const BookmarkIcon = (p: P & { filled?: boolean }) => (
     <Path d="M7 3.8h10a.8.8 0 0 1 .8.8v15.6L12 16.4l-5.8 3.8V4.6a.8.8 0 0 1 .8-.8z" stroke={p.color} strokeWidth={1.7} strokeLinejoin="round" fill={p.filled ? p.color : 'none'} />
   </Svg>
 );
+// listening: filled shapes, so they read at a glance on the player bar
+export const PlayIcon = (p: P) => <Svg width={p.size || 24} height={p.size || 24} viewBox="0 0 24 24"><Path d="M8 5.2v13.6a.9.9 0 0 0 1.38.76l10.4-6.8a.9.9 0 0 0 0-1.52L9.38 4.44A.9.9 0 0 0 8 5.2z" fill={p.color} /></Svg>;
+export const PauseIcon = (p: P) => <Svg width={p.size || 24} height={p.size || 24} viewBox="0 0 24 24"><Rect x={6} y={4.5} width={4.4} height={15} rx={1.3} fill={p.color} /><Rect x={13.6} y={4.5} width={4.4} height={15} rx={1.3} fill={p.color} /></Svg>;
+/** To the next ayah (pointing left, the way the page is read) or, mirrored, to the one before. */
+export const SkipIcon = (p: P & { back?: boolean }) => (
+  <Svg width={p.size || 24} height={p.size || 24} viewBox="0 0 24 24" style={p.back ? { transform: [{ scaleX: -1 }] } : undefined}>
+    <Path d="M18 6.3v11.4a.8.8 0 0 1-1.25.66L8.6 12.66a.8.8 0 0 1 0-1.32l8.15-5.7A.8.8 0 0 1 18 6.3z" fill={p.color} /><Rect x={5} y={5.5} width={2.6} height={13} rx={1.1} fill={p.color} />
+  </Svg>
+);
+export const RepeatIcon = (p: P) => (
+  <Svg width={p.size || 24} height={p.size || 24} viewBox="0 0 24 24" fill="none">
+    <Path d="M17 2.8l3.2 3.2L17 9.2M3.8 11V9.5A3.5 3.5 0 0 1 7.3 6h12.9M7 21.2L3.8 18 7 14.8M20.2 13v1.5a3.5 3.5 0 0 1-3.5 3.5H3.8" stroke={p.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+export const ListenIcon = (p: P) => (
+  <Svg width={p.size || 24} height={p.size || 24} viewBox="0 0 24 24" fill="none">
+    <Path d="M4 14v-2a8 8 0 0 1 16 0v2" stroke={p.color} strokeWidth={1.8} strokeLinecap="round" />
+    <Rect x={3} y={13} width={4.6} height={7} rx={2} stroke={p.color} strokeWidth={1.8} /><Rect x={16.4} y={13} width={4.6} height={7} rx={2} stroke={p.color} strokeWidth={1.8} />
+  </Svg>
+);
 export const SearchIcon = (p: P) => <Base {...p}><Circle cx={11} cy={11} r={6.5} /><Path d="M16 16l4.5 4.5" /></Base>;
 export const UndoIcon = (p: P) => <Base {...p} strokeWidth={p.strokeWidth ?? 2}><Path d="M9 14l-4-4 4-4" /><Path d="M5 10h9a5 5 0 0 1 0 10h-3" /></Base>;
 export const ShareIcon = (p: P) => <Base {...p} strokeWidth={p.strokeWidth ?? 1.8}><Path d="M12 3.5v11" /><Path d="M8 7.5l4-4 4 4" /><Path d="M6 11.5H5v8.5h14v-8.5h-1" /></Base>;

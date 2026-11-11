@@ -6,6 +6,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronIcon, PRAYER_ICONS, ShareIcon } from '../../components/icons';
 import { Panel, Row, SectionTitle, Segmented, Toggle, Txt, useTap } from '../../components/ui';
+import { RecitationDownloads } from '../../components/RecitationDownloads';
+import { RECITER } from '../../core/recite';
 import { downloadedCount, downloadRange, TOTAL_BYTES } from '../../quran/fonts';
 import { needsHomeScreen, notificationPermission } from '../../core/notify';
 import { ar, DAY_NAMES, fmtTime, ORDINALS, partIndex, times, WIN_KEYS, WIN_NAMES } from '../../core/plan';
@@ -92,6 +94,16 @@ export default function Settings() {
         <SectionTitle>المصحف على الهاتف</SectionTitle>
         <Panel>
           <OfflineRow />
+        </Panel>
+
+        <SectionTitle>التلاوة</SectionTitle>
+        <Panel>
+          <Row first title="القارئ" sub="مرتّل، آية بعد آية. في المصحف: اضغط السمّاعة لتستمع، أو اضغط مطوّلًا على آية." right={<Txt v="label" color={p.goldLight}>{RECITER.short}</Txt>} />
+          <View style={{ borderTopWidth: 1, borderTopColor: p.rule, paddingTop: 12 }}>
+            <Txt v="body" style={{ fontFamily: F.uiMed }}>الاستماع بلا إنترنت</Txt>
+            <Txt v="label" style={{ marginBottom: 2 }}>نزّل تلاوة حزب لتسمعه دون اتصال. التنزيل كبير، ويُفضّل أن يكون على شبكة واي فاي.</Txt>
+            <RecitationDownloads />
+          </View>
         </Panel>
 
         <SectionTitle>الإشعارات</SectionTitle>
