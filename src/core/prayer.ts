@@ -3,7 +3,10 @@
 // widely used calculators). All maths in UTC; returns Date objects.
 const PT = (() => {
   const METHODS = {
-    dubai:  { name: 'الإمارات (الهيئة العامة)', fajr: 18.2, isha: 18.2 },
+    // The UAE's published timetable adds a few minutes of caution to the computed times:
+    // sunrise 3 minutes earlier, Dhuhr 2 and Maghrib 3 minutes later (checked against the
+    // published Dubai table for 11 and 12 Nov 2026). `shift` is in whole minutes, after rounding.
+    dubai:  { name: 'الإمارات (الهيئة العامة)', fajr: 18.2, isha: 18.2, shift: { sunrise: -3, dhuhr: 2, maghrib: 3 } },
     egypt:  { name: 'الهيئة المصرية العامة للمساحة', fajr: 19.5, isha: 17.5 },
     makkah: { name: 'أم القرى (السعودية)', fajr: 18.5, ishaMin: 90 },
     mwl:    { name: 'رابطة العالم الإسلامي', fajr: 18, isha: 17 },
@@ -85,7 +88,7 @@ const PT = (() => {
     for (const k of Object.keys(out)) {
       let h = out[k];
       if (isNaN(h)) { res[k] = null; continue; }
-      const mins = k === 'sunrise' ? Math.floor(h * 60) : Math.ceil(h * 60 - 1e-9);
+      const mins = (k === 'sunrise' ? Math.floor(h * 60) : Math.ceil(h * 60 - 1e-9)) + ((m.shift && m.shift[k]) || 0);
       res[k] = new Date(Date.UTC(y, mo - 1, d, 0, mins, 0));
     }
     return res;

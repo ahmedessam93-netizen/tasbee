@@ -3,7 +3,7 @@
     "name": "قرآن (تسبيع)",
     "slug": "ahmed-essam",
     "scheme": "tasbee",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",

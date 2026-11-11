@@ -1,7 +1,7 @@
 import * as BackgroundTask from 'expo-background-task';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
-import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, ErrorBoundary as RouteError, ErrorBoundaryProps, router, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as TaskManager from 'expo-task-manager';
@@ -17,6 +17,8 @@ import { travelCheck } from '../core/location';
 import { plan } from '../core/plan';
 import { downloadRange } from '../quran/fonts';
 import { PARTS } from '../quran';
+import { reportError, startMonitor } from '../core/monitor';
+import { newId, setSharing, track } from '../core/track';
 import { usePalette } from '../theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -39,6 +41,21 @@ if (Platform.OS !== 'web') TaskManager.defineTask(REFRESH_TASK, async () => {
 function Shell() {
   const p = usePalette();
   const { ready, state, setSettings } = useStore();
+  // anonymous help for improving the app: a count of opens and error reports (Settings turns it off)
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!ready) return;
+    const share = state.settings.share !== false;
+    if (share && !state.settings.anon) { setSettings({ anon: newId() }); return; }
+    setSharing(share, state.settings.anon || '');
+    if (!share) return;
+    startMonitor();
+    if (!opened.current) {
+      opened.current = true;
+      const home = Platform.OS === 'web' && typeof window !== 'undefined' && ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || !!(navigator as any).standalone);
+      track('app_open', { home_screen: home, theme: state.settings.theme || 'auto' });
+    }
+  }, [ready, state.settings.share, state.settings.anon]); // eslint-disable-line react-hooks/exhaustive-deps
   const latest = useRef(state); latest.current = state;
   const [fontsLoaded] = useFonts({
     ReemKufi_600SemiBold: require('../../assets/fonts/ReemKufi_600SemiBold.ttf'),
@@ -118,4 +135,10 @@ export default function RootLayout() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/** When a screen breaks: report it, then show the usual "try again" screen. */
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  useEffect(() => { reportError(props.error); track('screen_error'); }, [props.error]);
+  return <RouteError {...props} />;
 }

@@ -124,6 +124,7 @@ export default function Settings() {
           <Row first title="المظهر" right={<Segmented value={s.theme || 'auto'} onChange={(v) => setSettings({ theme: v })} options={[{ v: 'auto', label: 'تلقائي' }, { v: 'dark', label: 'الليل' }, { v: 'light', label: 'الفجر' }]} />} />
           <Row title="إبقاء الشاشة مضاءة" sub="أثناء القراءة" right={<Toggle label="إبقاء الشاشة مضاءة" value={s.wake !== false} onChange={(v) => setSettings({ wake: v })} />} />
           <Row title="اهتزاز خفيف" sub="عند اللمس وتقليب الصفحات" right={<Toggle label="الاهتزاز" value={s.haptics !== false} onChange={(v) => setSettings({ haptics: v })} />} />
+          <Row title="المساعدة في تحسين التطبيق" sub="عدّ مجهول لما يُستعمل، وتقارير الأعطال. بلا اسم ولا حساب ولا موقع." right={<Toggle label="المساعدة في تحسين التطبيق" value={s.share !== false} onChange={(v) => setSettings({ share: v })} />} />
         </Panel>
 
         <SectionTitle>التطبيق</SectionTitle>

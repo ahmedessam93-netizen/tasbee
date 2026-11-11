@@ -12,6 +12,8 @@ export type Settings = {
   lat: number | null; lng: number | null; method: string; asr: number;
   offset: number; fixed: string[]; notif?: boolean; onboarded?: boolean;
   city?: number | 'geo'; cityName?: string; theme?: 'auto' | 'light' | 'dark'; wake?: boolean; haptics?: boolean;
+  /** share anonymous use and error reports (on unless turned off); anon: a random number for this install */
+  share?: boolean; anon?: string;
   travel?: boolean; pageZoom?: number;
   /** weekday (0 = Sunday … 6 = Saturday) on which the first part is read */
   startDay: number;

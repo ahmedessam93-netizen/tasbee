@@ -20,6 +20,7 @@ import { ar, fmtTime, itemsFor, MN, ORDINALS, PG, planForDay, RItem, sitLabel, s
 import { ayahAt, count as ayahCount, firstOn, Key, labelOf, lastBy, order, pageOf, placeOf, RECITER, shortLabel } from '../core/recite';
 import { useStore } from '../core/store';
 import { TAFSIR, tafsirOf } from '../core/tafsir';
+import { track } from '../core/track';
 import { useRecitation } from '../core/useRecitation';
 import { juzOf, minutesFor, posOf, surahName, surahsOn } from '../quran';
 import { loadPage } from '../quran/fonts';
@@ -169,12 +170,13 @@ export default function Reader() {
   const fullH = height - insets.top - insets.bottom;
 
   // ---- listening: al-Husary recites, the page follows, the ayah being recited is marked ----
+  useEffect(() => { track('reader_open', { mode: free ? 'mushaf' : 'sitting' }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [sheet, setSheet] = useState<Key | null>(null);          // the ayah a long press chose
   const [rangeFrom, setRangeFrom] = useState<Key | null>(null);  // a repeat range is waiting for its last ayah
   // the meaning of an ayah (al-Tafsir al-Muyassar)
   const [meaning, setMeaning] = useState<{ k: Key; text: string | null; shared: boolean } | null>(null);
   const openMeaning = (k: Key) => {
-    setSheet(null); setMeaning({ k, text: null, shared: false });
+    setSheet(null); setMeaning({ k, text: null, shared: false }); track('meaning_open');
     tafsirOf(k).then((t) => setMeaning((m) => (m && m.k.s === k.s && m.k.a === k.a ? { k, text: t ? t.text : '', shared: !!t && t.shared } : m)));
   };
   const rec = useRecitation({
@@ -198,7 +200,7 @@ export default function Reader() {
     tap('medium');
     if (rec.cur) { rec.toggle(); return; }
     const x = items[idxRef.current]; if (!x || x.kind !== 'page') return;
-    const k = firstOn(x.it.page, free ? 0 : x.it.from); if (k) rec.start(k);
+    const k = firstOn(x.it.page, free ? 0 : x.it.from); if (k) { rec.start(k); track('listen_start', { from: 'page' }); }
   };
   const onLong = (e: any, page: number) => {
     const w = wordAt(page, pageW, pageH, e.nativeEvent.pageX - (width - pageW) / 2, e.nativeEvent.pageY - insets.top);
@@ -206,7 +208,7 @@ export default function Reader() {
     tap('medium');
     if (rangeFrom) {
       const [a, b] = order(rangeFrom) <= order(k) ? [rangeFrom, k] : [k, rangeFrom];
-      setRangeFrom(null); rec.start(a, { kind: 'range', from: a, to: b }); return;
+      setRangeFrom(null); rec.start(a, { kind: 'range', from: a, to: b }); track('listen_start', { from: 'repeat_range' }); return;
     }
     setSheet(k);
   };
@@ -393,9 +395,9 @@ export default function Reader() {
               <View style={{ padding: 16, gap: 10 }}>
                 <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: F.display, fontSize: 19, lineHeight: 28, color: p.ink, textAlign: 'center' }}>{labelOf(sheet)}</Text>
                 <Text maxFontSizeMultiplier={1.15} style={{ fontFamily: F.ui, fontSize: 12.5, lineHeight: 18, color: p.muted, textAlign: 'center', marginBottom: 4 }}>{`بصوت ${RECITER.name}`}</Text>
-                <GoldButton label="استمع من هذه الآية" icon={<PlayIcon size={18} color={p.onPrimary} />} onPress={() => { const k = sheet; setSheet(null); rec.start(k); }} />
+                <GoldButton label="استمع من هذه الآية" icon={<PlayIcon size={18} color={p.onPrimary} />} onPress={() => { const k = sheet; setSheet(null); rec.start(k); track('listen_start', { from: 'ayah' }); }} />
                 <GlassButton label="معنى الآية (التفسير الميسّر)" tone="gold" onPress={() => openMeaning(sheet)} />
-                <GlassButton label="كرّر هذه الآية" tone="gold" onPress={() => { const k = sheet; setSheet(null); rec.start(k, { kind: 'ayah' }); }} />
+                <GlassButton label="كرّر هذه الآية" tone="gold" onPress={() => { const k = sheet; setSheet(null); rec.start(k, { kind: 'ayah' }); track('listen_start', { from: 'repeat_ayah' }); }} />
                 <GlassButton label="كرّر من هذه الآية إلى آية أختارها" tone="gold" onPress={() => { setRangeFrom(sheet); setSheet(null); showChrome(false); }} />
                 <GlassButton label="إلغاء" onPress={() => setSheet(null)} />
               </View>

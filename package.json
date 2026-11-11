@@ -8,6 +8,7 @@
     "@expo-google-fonts/reem-kufi": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.5.1",
+    "@sentry/browser": "^11.12.0",
     "expo": "~58.0.23",
     "expo-application": "~58.1.2",
     "expo-audio": "~58.0.11",
