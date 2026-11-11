@@ -1,0 +1,17 @@
+{
+  "name": "قرآن (تسبيع)",
+  "short_name": "تسبيع",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#08201D",
+  "theme_color": "#08201D",
+  "description": "ختمة القرآن كل أسبوع، جزء كل يوم في جلسات بعد الصلوات الخمس.",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

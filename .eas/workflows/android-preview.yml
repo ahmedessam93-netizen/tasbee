@@ -1,0 +1,14 @@
+name: Android install link
+
+# Pushing to this branch builds the shareable install file (.apk).
+on:
+  push:
+    branches: ['build/android-preview']
+
+jobs:
+  build_android:
+    name: Build Android (install link)
+    type: build
+    params:
+      platform: android
+      profile: preview

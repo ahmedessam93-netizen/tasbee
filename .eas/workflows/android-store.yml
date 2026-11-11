@@ -1,0 +1,14 @@
+name: Android store build
+
+# Pushing to this branch builds the Google Play file (.aab) with the project's own credentials.
+on:
+  push:
+    branches: ['build/android-store']
+
+jobs:
+  build_android:
+    name: Build Android (Google Play)
+    type: build
+    params:
+      platform: android
+      profile: production

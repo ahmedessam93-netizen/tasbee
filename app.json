@@ -1,0 +1,141 @@
+{
+  "expo": {
+    "name": "قرآن (تسبيع)",
+    "slug": "ahmed-essam",
+    "scheme": "tasbee",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0A2C26",
+    "ios": {
+      "bundleIdentifier": "com.tasbee.quran",
+      "supportsTablet": false,
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "ar",
+        "CFBundleLocalizations": [
+          "ar"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.tasbee.quran",
+      "versionCode": 5,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-foreground.png",
+        "backgroundColor": "#0A2C26",
+        "monochromeImage": "./assets/adaptive-monochrome.png"
+      },
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-localization",
+        {
+          "supportsRTL": true,
+          "forcesRTL": true
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-mark.png",
+          "imageWidth": 140,
+          "backgroundColor": "#0A2C26",
+          "dark": {
+            "image": "./assets/splash-mark.png",
+            "backgroundColor": "#0A2C26"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#E2BC6A"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "لحساب مواقيت الصلاة في مدينتك."
+        }
+      ],
+      "expo-background-task",
+      "expo-font",
+      [
+        "react-native-android-widget",
+        {
+          "fonts": [
+            "./assets/fonts/Amiri_700Bold.ttf",
+            "./assets/fonts/ReemKufi_600SemiBold.ttf",
+            "./assets/fonts/IBMPlexSansArabic_400Regular.ttf",
+            "./assets/fonts/IBMPlexSansArabic_500Medium.ttf"
+          ],
+          "widgets": [
+            {
+              "name": "Tasbee",
+              "label": "جلسة القرآن",
+              "description": "جزء اليوم والجلسة الحالية",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widget-preview.png"
+            },
+            {
+              "name": "TasbeeSmall",
+              "label": "جلسة القرآن (صغير)",
+              "description": "تقدّم جزء اليوم والجلسة الحالية",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widget-preview-small.png"
+            }
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": [
+              "arm64-v8a",
+              "armeabi-v7a"
+            ]
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f4abe883-2138-45dd-a1c9-d6dd0295d6b6"
+      }
+    },
+    "owner": "ahmedessam287s-team"
+  }
+}
